@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EEG Stimulus Presentation System</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      background: #1a1a1a;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+      color: #e0e0e0;
+      overflow: hidden;
+      position: fixed;
+    }
+
+    #app-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      padding: 8px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.6em;
+      margin-bottom: 4px;
+      color: #ffffff;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    #experiment-info {
+      text-align: center;
+      font-size: 0.85em;
+      color: #999;
+      margin-bottom: 6px;
+      flex-shrink: 0;
+    }
+
+    /* Progress Bar */
+    #progress-bar-container {
+      background: #2a2a2a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 6px;
+      margin-bottom: 6px;
+      flex-shrink: 0;
+    }
+
+    #progress-bar {
+      width: 100%;
+      height: 18px;
+      background: #1a1a1a;
+      border-radius: 9px;
+      overflow: hidden;
+    }
+
+    #progress-fill {
+      height: 100%;
+      background: #0d7377;
+      width: 0%;
+      transition: width 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      font-size: 11px;
+    }
+
+    /* Status Bar */
+    #status-bar {
+      background: #2a2a2a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 8px;
+      margin-bottom: 6px;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .status-item {
+      text-align: center;
+      padding: 6px;
+      background: #222;
+      border-radius: 6px;
+      border: 1px solid #333;
+    }
+
+    .status-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 2px;
+      letter-spacing: 0.5px;
+    }
+
+    .status-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: #14a1a6;
+    }
+
+    /* Main Content Area - 정확한 높이 계산 */
+    #main-content {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 8px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Stimulus Container */
+    #stimulus-section {
+      background: #2a2a2a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    #stimulus-container {
+      width: 100%;
+      flex: 1;
+      background: #000;
+      border-radius: 8px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 2px solid #222;
+    }
+
+    #stimulus-container.waiting-response {
+      border-color: #0d7377;
+      box-shadow: 0 0 0 2px #0d7377;
+    }
+
+    #stimulus {
+      max-width: 90%;
+      max-height: 90%;
+      border-radius: 6px;
+      display: none;
+    }
+
+    #stimulus-text {
+      font-size: 20px;
+      text-align: center;
+      padding: 20px;
+      white-space: pre-line;
+      line-height: 1.4;
+      display: none;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    #fixation {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 14px;
+      height: 14px;
+      background: #ff0000;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      display: none;
+      z-index: 10;
+    }
+
+    #overlay-text {
+      position: absolute;
+      top: 20px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      color: #fff;
+      text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8);
+      z-index: 5;
+      padding: 0 20px;
+      display: none;
+    }
+
+    #response-buttons {
+      margin-top: 8px;
+      display: none;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      font-size: 14px;
+      padding: 8px 16px;
+      background: #0d7377;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-weight: 600;
+    }
+
+    button:hover:not(:disabled) {
+      background: #14a1a6;
+    }
+
+    button:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      background: #444;
+    }
+
+    /* Side Panel */
+    #side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+    }
+
+    /* Controls */
+    #controls {
+      background: #2a2a2a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 10px;
+      flex-shrink: 0;
+    }
+
+    #controls h3 {
+      margin-bottom: 8px;
+      font-size: 1em;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    #controls button {
+      width: 100%;
+      margin-bottom: 6px;
+      padding: 6px 12px;
+      font-size: 13px;
+    }
+
+    /* Log Container */
+    #log-container {
+      background: #2a2a2a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 10px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    #log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+
+    #log-header h3 {
+      font-size: 1em;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    #log-header button {
+      padding: 4px 10px;
+      font-size: 12px;
+    }
+
+    #log {
+      flex: 1;
+      background: #1a1a1a;
+      border-radius: 6px;
+      padding: 8px;
+      overflow-y: auto;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 10px;
+      min-height: 0;
+      border: 1px solid #222;
+    }
+
+    /* Custom scrollbar for log */
+    #log::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #log::-webkit-scrollbar-track {
+      background: #222;
+      border-radius: 3px;
+    }
+
+    #log::-webkit-scrollbar-thumb {
+      background: #444;
+      border-radius: 3px;
+    }
+
+    #log::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+
+    .log-entry {
+      margin-bottom: 4px;
+      padding: 3px 6px;
+      border-radius: 3px;
+      line-height: 1.3;
+      border-left: 2px solid transparent;
+    }
+
+    .log-entry.info {
+      color: #70b5e8;
+      border-left-color: #70b5e8;
+      background: rgba(112, 181, 232, 0.1);
+    }
+
+    .log-entry.event {
+      color: #6fbf73;
+      border-left-color: #6fbf73;
+      background: rgba(111, 191, 115, 0.1);
+    }
+
+    .log-entry.warning {
+      color: #e6a846;
+      border-left-color: #e6a846;
+      background: rgba(230, 168, 70, 0.1);
+    }
+
+    .log-entry.error {
+      color: #e86f6f;
+      border-left-color: #e86f6f;
+      background: rgba(232, 111, 111, 0.1);
+    }
+
+    .log-entry.success {
+      color: #14a1a6;
+      border-left-color: #14a1a6;
+      background: rgba(20, 161, 166, 0.15);
+      font-weight: bold;
+    }
+
+    .timestamp {
+      color: #666;
+      font-size: 9px;
+      margin-right: 6px;
+    }
+
+    /* Loading Overlay */
+    #loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .spinner {
+      border: 5px solid #333;
+      border-top: 5px solid #0d7377;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    #loading-text {
+      margin-top: 20px;
+      font-size: 18px;
+      color: #e0e0e0;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1200px) {
+      #main-content {
+        grid-template-columns: 1fr;
+      }
+
+      #stimulus-container {
+        max-height: 300px;
+      }
+
+      #log {
+        max-height: 200px;
+      }
+    }
+
+    @media (max-height: 800px) {
+      h1 {
+        font-size: 1.5em;
+        margin-bottom: 3px;
+      }
+
+      #experiment-info {
+        font-size: 0.85em;
+        margin-bottom: 5px;
+      }
+
+      .status-value {
+        font-size: 16px;
+      }
+
+      #stimulus-container {
+        max-height: 300px;
+      }
+    }
+
+    /* Feedback Messages */
+    #feedback-message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.95);
+      padding: 20px 40px;
+      border-radius: 10px;
+      font-size: 24px;
+      font-weight: bold;
+      z-index: 20;
+      display: none;
+      border: 2px solid;
+    }
+
+    #feedback-message.correct {
+      color: #6fbf73;
+      border-color: #6fbf73;
+    }
+
+    #feedback-message.incorrect {
+      color: #e86f6f;
+      border-color: #e86f6f;
+    }
+
+    /* Progress Bar */
+    #progress-bar-container {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 10px;
+      padding: 8px;
+      margin-bottom: 10px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    #progress-bar {
+      width: 100%;
+      height: 20px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    #progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4caf50 0%, #8bc34a 100%);
+      width: 0%;
+      transition: width 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 12px;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+</head>
+
+<body>
+  <div id="loading-overlay">
+    <div style="text-align: center;">
+      <div class="spinner"></div>
+      <div id="loading-text">Loading experiment configuration...</div>
+    </div>
+  </div>
+
+  <div id="app-container">
+    <h1>🧠 EEG Stimulus Presentation System</h1>
+    <div id="experiment-info">Professional-grade stimulus delivery with millisecond precision</div>
+
+    <!-- Progress Bar -->
+    <div id="progress-bar-container">
+      <div id="progress-bar">
+        <div id="progress-fill">0%</div>
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div id="status-bar">
+      <div class="status-item">
+        <div class="status-label">Current Block</div>
+        <div class="status-value" id="block-name">Not Started</div>
+      </div>
+      <div class="status-item">
+        <div class="status-label">Trial Progress</div>
+        <div class="status-value" id="trial-counter">0 / 0</div>
+      </div>
+      <div class="status-item">
+        <div class="status-label">Responses</div>
+        <div class="status-value" id="response-count">0</div>
+      </div>
+      <div class="status-item">
+        <div class="status-label">Avg RT</div>
+        <div class="status-value" id="avg-rt">-- ms</div>
+      </div>
+      <div class="status-item">
+        <div class="status-label">Timing Drift</div>
+        <div class="status-value" id="timing-drift">0 ms</div>
+      </div>
+      <div class="status-item">
+        <div class="status-label">Dropped Frames</div>
+        <div class="status-value" id="dropped-frames">0</div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content">
+      <!-- Stimulus Section -->
+      <div id="stimulus-section">
+        <div id="stimulus-container">
+          <img id="stimulus" src="" alt="stimulus">
+          <div id="stimulus-text"></div>
+          <div id="fixation"></div>
+          <div id="overlay-text"></div>
+          <div id="feedback-message"></div>
+        </div>
+        <div id="response-buttons"></div>
+      </div>
+
+      <!-- Side Panel -->
+      <div id="side-panel">
+        <!-- Controls -->
+        <div id="controls">
+          <h3>📊 Controls</h3>
+          <button id="start-btn">▶️ Start Experiment</button>
+          <button id="pause-btn" disabled>⏸️ Pause</button>
+          <button id="skip-btn" disabled>⏭️ Skip Trial</button>
+          <button id="export-btn">💾 Export Data</button>
+        </div>
+
+        <!-- Event Log -->
+        <div id="log-container">
+          <div id="log-header">
+            <h3>📝 Event Log</h3>
+            <button onclick="clearLog()">Clear</button>
+          </div>
+          <div id="log"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========================================================================
+    // EXPERIMENT STATE MANAGEMENT
+    // ========================================================================
+    const ExperimentState = {
+      config: null,
+      allTrials: [],
+      currentTrialIndex: 0,
+      currentBlockIndex: 0,
+      startTime: null,
+      blockStartTime: null,
+      isPaused: false,
+      isRunning: false,
+
+      // Data collection
+      eventLog: [],
+      responses: [],
+      timingData: [],
+
+      // Performance metrics
+      droppedFrames: 0,
+      timingDrifts: [],
+
+      // Cache
+      imageCache: new Map(),
+      preloadQueue: []
+    };
+
+    // ========================================================================
+    // DOM ELEMENTS
+    // ========================================================================
+    const DOM = {
+      stimulus: document.getElementById('stimulus'),
+      stimulusText: document.getElementById('stimulus-text'),
+      fixation: document.getElementById('fixation'),
+      overlayText: document.getElementById('overlay-text'),
+      responseButtons: document.getElementById('response-buttons'),
+      feedbackMessage: document.getElementById('feedback-message'),
+      log: document.getElementById('log'),
+
+      // Status elements
+      blockName: document.getElementById('block-name'),
+      trialCounter: document.getElementById('trial-counter'),
+      responseCount: document.getElementById('response-count'),
+      avgRt: document.getElementById('avg-rt'),
+      timingDrift: document.getElementById('timing-drift'),
+      droppedFrames: document.getElementById('dropped-frames'),
+      progressFill: document.getElementById('progress-fill'),
+
+      // Controls
+      startBtn: document.getElementById('start-btn'),
+      pauseBtn: document.getElementById('pause-btn'),
+      skipBtn: document.getElementById('skip-btn'),
+      exportBtn: document.getElementById('export-btn'),
+
+      // Loading
+      loadingOverlay: document.getElementById('loading-overlay'),
+      loadingText: document.getElementById('loading-text')
+    };
+
+    // ========================================================================
+    // LOGGING SYSTEM - 최적화된 버전 (렉 방지)
+    // ========================================================================
+    let logBuffer = [];
+    let logUpdateScheduled = false;
+    const MAX_LOG_ENTRIES = 100; // 최대 로그 항목 수 제한
+
+    function log(message, level = 'info', metadata = {}) {
+      const timestamp = performance.now();
+      const relativeTime = ExperimentState.startTime
+        ? (timestamp - ExperimentState.startTime).toFixed(1)
+        : '0.0';
+
+      const logEntry = {
+        timestamp,
+        relativeTime,
+        level,
+        message,
+        metadata,
+        systemTime: new Date().toISOString()
+      };
+
+      ExperimentState.eventLog.push(logEntry);
+      logBuffer.push(logEntry);
+
+      // 배치 업데이트 스케줄링
+      if (!logUpdateScheduled) {
+        logUpdateScheduled = true;
+        requestAnimationFrame(flushLogBuffer);
+      }
+
+      // Auto-save checkpoint every 50 events (20에서 50으로 증가)
+      if (ExperimentState.eventLog.length % 50 === 0) {
+        saveCheckpoint();
+      }
+    }
+
+    function flushLogBuffer() {
+      if (logBuffer.length === 0) {
+        logUpdateScheduled = false;
+        return;
+      }
+
+      // 한번에 최대 10개까지만 DOM에 추가
+      const batchSize = Math.min(10, logBuffer.length);
+      const fragment = document.createDocumentFragment();
+
+      for (let i = 0; i < batchSize; i++) {
+        const entry = logBuffer.shift();
+        const div = document.createElement('div');
+        div.className = `log-entry ${entry.level}`;
+
+        const timeStr = `<span class="timestamp">[${entry.relativeTime}ms]</span>`;
+        div.innerHTML = `${timeStr} ${entry.message}`;
+        fragment.appendChild(div);
+      }
+
+      DOM.log.appendChild(fragment);
+
+      // 오래된 로그 삭제 (성능 유지)
+      while (DOM.log.children.length > MAX_LOG_ENTRIES) {
+        DOM.log.removeChild(DOM.log.firstChild);
+      }
+
+      DOM.log.scrollTop = DOM.log.scrollHeight;
+
+      // 아직 버퍼에 남아있으면 계속 처리
+      if (logBuffer.length > 0) {
+        requestAnimationFrame(flushLogBuffer);
+      } else {
+        logUpdateScheduled = false;
+      }
+    }
+
+    function clearLog() {
+      DOM.log.innerHTML = '';
+      logBuffer = [];
+    }
+
+    // ========================================================================
+    // MOCK EEG DATA GENERATOR
+    // ========================================================================
+    function generateMockEEG(eventType = 'baseline') {
+      const baseline = 50;
+      const noise = (Math.random() - 0.5) * 15;
+      const eventResponse = eventType !== 'baseline' ? (Math.random() * 20) : 0;
+
+      return {
+        timestamp: performance.now(),
+        value: (baseline + noise + eventResponse).toFixed(2),
+        channels: {
+          'Fz': (baseline + noise + Math.random() * 8).toFixed(2),
+          'Cz': (baseline + noise + eventResponse + Math.random() * 5).toFixed(2),
+          'Pz': (baseline + noise - Math.random() * 4).toFixed(2),
+          'Oz': (baseline + noise + eventResponse * 0.8).toFixed(2)
+        }
+      };
+    }
+
+    // ========================================================================
+    // IMAGE PRELOADING & CACHING
+    // ========================================================================
+    async function preloadImage(url) {
+      if (ExperimentState.imageCache.has(url)) {
+        return ExperimentState.imageCache.get(url);
+      }
+
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          ExperimentState.imageCache.set(url, img);
+          resolve(img);
+        };
+        img.onerror = () => {
+          log(`Failed to load: ${url}`, 'error');
+          reject(new Error(`Failed to load ${url}`));
+        };
+        img.src = url;
+      });
+    }
+
+    async function preloadNextTrials(n = 3) {
+      const startIdx = ExperimentState.currentTrialIndex + 1;
+      const endIdx = Math.min(startIdx + n, ExperimentState.allTrials.length);
+
+      for (let i = startIdx; i < endIdx; i++) {
+        const trial = ExperimentState.allTrials[i].trial;
+        if (trial.stimulus_type === 'image' && !ExperimentState.imageCache.has(trial.stimulus)) {
+          try {
+            await preloadImage(trial.stimulus);
+          } catch (e) {
+            // Continue even if preload fails
+          }
+        }
+      }
+    }
+
+    // ========================================================================
+    // TRIAL PRESENTATION
+    // ========================================================================
+    async function presentTrial(trial, blockInfo) {
+      return new Promise(async (resolve) => {
+        const trialStartTime = performance.now();
+        const scheduledDuration = trial.duration_ms;
+
+        // Update UI
+        ExperimentState.currentTrialIndex++;
+        updateProgress();
+        DOM.blockName.textContent = blockInfo.name;
+        DOM.trialCounter.textContent = `${ExperimentState.currentTrialIndex} / ${ExperimentState.allTrials.length}`;
+
+        // Clear previous state
+        clearStimulusDisplay();
+
+        // Add waiting indicator if blocking for response
+        const stimulusContainer = document.getElementById('stimulus-container');
+        if (trial.response && trial.response.block_until_response && trial.response.type !== 'none') {
+          stimulusContainer.classList.add('waiting-response');
+        } else {
+          stimulusContainer.classList.remove('waiting-response');
+        }
+
+        // Log trial start
+        const eegStart = generateMockEEG('trial_start');
+        log(`🎯 ${trial.trial_id}`, 'event', {
+          type: trial.markers?.event_type,
+          eeg: eegStart.value
+        });
+
+        // Display stimulus
+        await displayStimulus(trial);
+
+        // Display overlay elements
+        displayOverlay(trial.overlay);
+
+        // Setup response collection
+        let responseReceived = false;
+        let trialCompleted = false;
+        let timeoutHandle = null;
+
+        const handleResponse = (responseValue, responseType) => {
+          if (responseReceived && !trial.response?.record_all_responses) return;
+
+          responseReceived = true;
+          const rt = (performance.now() - trialStartTime).toFixed(2);
+          const eegResp = generateMockEEG('response');
+
+          const responseData = {
+            trial_id: trial.trial_id,
+            block_id: blockInfo.id,
+            response: responseValue,
+            response_type: responseType,
+            rt_ms: parseFloat(rt),
+            timestamp: performance.now()
+          };
+
+          ExperimentState.responses.push(responseData);
+          updateResponseStats();
+
+          log(`✓ ${responseValue}`, 'event', {
+            rt: rt,
+            eeg: eegResp.value
+          });
+
+          // Show feedback if configured
+          if (trial.response?.show_feedback && trial.response?.correct_answer) {
+            const isCorrect = responseValue === trial.response.correct_answer;
+            showFeedback(isCorrect);
+          }
+
+          // Complete trial if blocking
+          if (trial.response?.block_until_response) {
+            if (timeoutHandle) clearTimeout(timeoutHandle);
+            completeTrial();
+          }
+        };
+
+        // Setup response handlers
+        setupResponseHandlers(trial, handleResponse, trialStartTime);
+
+        // Complete trial function
+        function completeTrial() {
+          if (trialCompleted) return;
+          trialCompleted = true;
+
+          const actualDuration = performance.now() - trialStartTime;
+          const drift = actualDuration - scheduledDuration;
+
+          // Track timing
+          ExperimentState.timingDrifts.push(Math.abs(drift));
+
+          if (Math.abs(drift) > 5) {
+            ExperimentState.droppedFrames++;
+            DOM.droppedFrames.textContent = ExperimentState.droppedFrames;
+            log(`⚠️ Drift: ${drift.toFixed(1)}ms`, 'warning');
+          }
+
+          updateTimingStats();
+
+          // Log missed response if applicable
+          if (!responseReceived && trial.response && trial.response.type !== 'none') {
+            log(`⏱️ Timeout`, 'warning');
+          }
+
+          // Cleanup
+          cleanupResponseHandlers();
+          document.getElementById('stimulus-container').classList.remove('waiting-response');
+
+          resolve();
+        }
+
+        // Set timer for trial completion
+        if (!trial.response || trial.response.type === 'none') {
+          // No response expected - use duration
+          setTimeout(completeTrial, scheduledDuration);
+        } else if (trial.response.block_until_response) {
+          // Waiting for response
+          if (trial.response.timeout_ms) {
+            // Use timeout if specified
+            timeoutHandle = setTimeout(() => {
+              log(`⏱️ Timeout (${trial.response.timeout_ms}ms)`, 'warning');
+              completeTrial();
+            }, trial.response.timeout_ms);
+          }
+          // If no timeout specified, wait indefinitely for response
+        } else {
+          // Not blocking - use duration
+          setTimeout(completeTrial, scheduledDuration);
+        }
+
+        // Preload next trials in background (적게)
+        if (ExperimentState.currentTrialIndex % 3 === 0) {
+          preloadNextTrials(2);
+        }
+      });
+    }
+
+    // ========================================================================
+    // STIMULUS DISPLAY
+    // ========================================================================
+    function clearStimulusDisplay() {
+      DOM.stimulus.style.display = 'none';
+      DOM.stimulusText.style.display = 'none';
+      DOM.fixation.style.display = 'none';
+      DOM.overlayText.style.display = 'none';
+      DOM.responseButtons.style.display = 'none';
+      DOM.responseButtons.innerHTML = '';
+      DOM.feedbackMessage.style.display = 'none';
+    }
+
+    async function displayStimulus(trial) {
+      if (trial.stimulus_type === 'image') {
+        try {
+          await preloadImage(trial.stimulus);
+          DOM.stimulus.src = trial.stimulus;
+          DOM.stimulus.style.display = 'block';
+        } catch (e) {
+          log('Failed to display image', 'error', { error: e.message });
+        }
+      } else if (trial.stimulus_type === 'text') {
+        DOM.stimulusText.textContent = trial.stimulus;
+        DOM.stimulusText.style.display = 'block';
+      } else if (trial.stimulus_type === 'blank') {
+        // Display nothing (just fixation if configured)
+      }
+    }
+
+    function displayOverlay(overlay) {
+      if (!overlay) return;
+
+      if (overlay.fixation) {
+        DOM.fixation.style.display = 'block';
+      }
+
+      if (overlay.text) {
+        DOM.overlayText.textContent = overlay.text;
+        DOM.overlayText.style.display = 'block';
+      }
+    }
+
+    // ========================================================================
+    // RESPONSE HANDLING
+    // ========================================================================
+    let currentKeyHandler = null;
+
+    function setupResponseHandlers(trial, handleResponse, trialStartTime) {
+      if (!trial.response || trial.response.type === 'none') return;
+
+      if (trial.response.type === 'button') {
+        DOM.responseButtons.style.display = 'flex';
+        trial.response.options.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.textContent = opt;
+          btn.onclick = () => handleResponse(opt, 'button');
+          DOM.responseButtons.appendChild(btn);
+        });
+      } else if (trial.response.type === 'key') {
+        currentKeyHandler = (e) => {
+          if (trial.response.options.includes(e.key)) {
+            handleResponse(e.key, 'key');
+          }
+        };
+        document.addEventListener('keydown', currentKeyHandler);
+      }
+    }
+
+    function cleanupResponseHandlers() {
+      if (currentKeyHandler) {
+        document.removeEventListener('keydown', currentKeyHandler);
+        currentKeyHandler = null;
+      }
+    }
+
+    function showFeedback(isCorrect) {
+      DOM.feedbackMessage.textContent = isCorrect ? '✓ Correct!' : '✗ Incorrect';
+      DOM.feedbackMessage.className = isCorrect ? 'correct' : 'incorrect';
+      DOM.feedbackMessage.style.display = 'block';
+
+      setTimeout(() => {
+        DOM.feedbackMessage.style.display = 'none';
+      }, 1000);
+    }
+
+    // ========================================================================
+    // STATISTICS UPDATES
+    // ========================================================================
+    function updateProgress() {
+      const progress = (ExperimentState.currentTrialIndex / ExperimentState.allTrials.length) * 100;
+      DOM.progressFill.style.width = `${progress}%`;
+      DOM.progressFill.textContent = `${Math.round(progress)}%`;
+    }
+
+    function updateResponseStats() {
+      DOM.responseCount.textContent = ExperimentState.responses.length;
+
+      // Calculate average RT
+      if (ExperimentState.responses.length > 0) {
+        const avgRt = ExperimentState.responses.reduce((sum, r) => sum + r.rt_ms, 0) / ExperimentState.responses.length;
+        DOM.avgRt.textContent = `${avgRt.toFixed(0)} ms`;
+      }
+    }
+
+    function updateTimingStats() {
+      if (ExperimentState.timingDrifts.length > 0) {
+        const avgDrift = ExperimentState.timingDrifts.reduce((a, b) => a + b, 0) / ExperimentState.timingDrifts.length;
+        DOM.timingDrift.textContent = `${avgDrift.toFixed(1)} ms`;
+      }
+    }
+
+    // ========================================================================
+    // EXPERIMENT CONTROL
+    // ========================================================================
+    async function loadExperiment() {
+      try {
+        DOM.loadingText.textContent = 'Loading configuration...';
+
+        const response = await fetch('experiment.yaml');
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const yamlText = await response.text();
+        ExperimentState.config = jsyaml.load(yamlText);
+
+        DOM.loadingText.textContent = 'Processing experiment blocks...';
+
+        // Flatten blocks into trial sequence
+        ExperimentState.allTrials = [];
+        ExperimentState.config.blocks.forEach(block => {
+          let trials = [...block.trials];
+
+          // Handle randomization
+          if (block.randomize) {
+            trials = shuffleArray(trials);
+          }
+
+          trials.forEach(trial => {
+            ExperimentState.allTrials.push({
+              trial,
+              blockInfo: {
+                id: block.block_id,
+                name: block.block_name || block.description,
+                description: block.description
+              }
+            });
+          });
+        });
+
+        DOM.loadingText.textContent = 'Preloading images...';
+
+        // Preload first batch of images (적게)
+        await preloadNextTrials(3);
+
+        // Update UI
+        document.getElementById('experiment-info').textContent =
+          `${ExperimentState.config.metadata.experiment_name} - ${ExperimentState.allTrials.length} trials`;
+        DOM.trialCounter.textContent = `0 / ${ExperimentState.allTrials.length}`;
+
+        log(`✅ Loaded: ${ExperimentState.allTrials.length} trials`, 'success');
+
+        DOM.startBtn.disabled = false;
+        DOM.loadingOverlay.style.display = 'none';
+
+      } catch (e) {
+        log(`❌ Failed to load experiment: ${e.message}`, 'error');
+        DOM.loadingText.textContent = `Error: ${e.message}`;
+
+        setTimeout(() => {
+          DOM.loadingOverlay.style.display = 'none';
+        }, 3000);
+      }
+    }
+
+    async function runExperiment() {
+      ExperimentState.startTime = performance.now();
+      ExperimentState.currentTrialIndex = 0;
+      ExperimentState.isRunning = true;
+
+      DOM.startBtn.disabled = true;
+      DOM.pauseBtn.disabled = false;
+      DOM.skipBtn.disabled = false;
+
+      log('🚀 EXPERIMENT START', 'success');
+
+      for (const { trial, blockInfo } of ExperimentState.allTrials) {
+        // Handle pause
+        while (ExperimentState.isPaused) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        if (!ExperimentState.isRunning) break;
+
+        await presentTrial(trial, blockInfo);
+
+        // Small inter-trial interval
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      const totalDuration = ((performance.now() - ExperimentState.startTime) / 1000).toFixed(1);
+
+      log(`🏁 COMPLETE (${totalDuration}s)`, 'success');
+
+      DOM.pauseBtn.disabled = true;
+      DOM.skipBtn.disabled = true;
+
+      alert('🎉 Experiment completed! Click "Export Data" to download results.');
+    }
+
+    // ========================================================================
+    // DATA EXPORT
+    // ========================================================================
+    function exportData() {
+      const exportData = {
+        metadata: {
+          ...ExperimentState.config.metadata,
+          completion_time: new Date().toISOString(),
+          participant_id: 'demo'
+        },
+        summary: {
+          total_trials: ExperimentState.currentTrialIndex,
+          total_responses: ExperimentState.responses.length,
+          average_rt_ms: ExperimentState.responses.length > 0
+            ? ExperimentState.responses.reduce((sum, r) => sum + r.rt_ms, 0) / ExperimentState.responses.length
+            : 0,
+          average_timing_drift_ms: ExperimentState.timingDrifts.length > 0
+            ? ExperimentState.timingDrifts.reduce((a, b) => a + b, 0) / ExperimentState.timingDrifts.length
+            : 0,
+          dropped_frames: ExperimentState.droppedFrames
+        },
+        events: ExperimentState.eventLog,
+        responses: ExperimentState.responses,
+        timing_data: ExperimentState.timingDrifts
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+        type: 'application/json'
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `experiment_data_${new Date().toISOString()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      log('💾 Data exported', 'success');
+    }
+
+    function saveCheckpoint() {
+      try {
+        const checkpoint = {
+          timestamp: new Date().toISOString(),
+          currentTrial: ExperimentState.currentTrialIndex,
+          eventLog: ExperimentState.eventLog.slice(-50), // Last 50 events only
+          responses: ExperimentState.responses,
+          timingDrifts: ExperimentState.timingDrifts
+        };
+        localStorage.setItem('eeg_experiment_checkpoint', JSON.stringify(checkpoint));
+      } catch (e) {
+        // Silent fail for storage quota
+      }
+    }
+
+    // ========================================================================
+    // UTILITY FUNCTIONS
+    // ========================================================================
+    function shuffleArray(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    // ========================================================================
+    // EVENT LISTENERS
+    // ========================================================================
+    DOM.startBtn.addEventListener('click', () => {
+      runExperiment();
+    });
+
+    DOM.pauseBtn.addEventListener('click', () => {
+      ExperimentState.isPaused = !ExperimentState.isPaused;
+      DOM.pauseBtn.textContent = ExperimentState.isPaused ? '▶️ Resume' : '⏸️ Pause';
+      log(ExperimentState.isPaused ? '⏸️ Paused' : '▶️ Resumed', 'info');
+    });
+
+    DOM.skipBtn.addEventListener('click', () => {
+      log('⏭️ Skip not available', 'warning');
+    });
+
+    DOM.exportBtn.addEventListener('click', exportData);
+
+    // ========================================================================
+    // INITIALIZATION
+    // ========================================================================
+    window.addEventListener('load', () => {
+      loadExperiment();
+    });
+
+    // Prevent space bar from scrolling the page
+    window.addEventListener('keydown', (e) => {
+      if (e.key === ' ' && e.target === document.body) {
+        e.preventDefault();
+      }
+    });
+
+    // Handle page unload
+    window.addEventListener('beforeunload', (e) => {
+      if (ExperimentState.isRunning) {
+        saveCheckpoint();
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
+  </script>
+</body>
+
+</html>

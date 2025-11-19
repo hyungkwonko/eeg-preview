@@ -1,0 +1,531 @@
+# ============================================================================
+# EEG Stimulus Presentation Configuration
+# ============================================================================
+# This YAML file defines the complete experimental protocol.
+# It supports: image/video/text stimuli, overlays, response collection,
+# precise timing, randomization, and comprehensive event logging.
+# ============================================================================
+
+metadata:
+  experiment_name: "Visual Perception EEG Study"
+  version: "2.1.0"
+  author: "Neuroscience Lab"
+  date: "2025-01-15"
+  description: |
+    Multi-block experiment investigating visual perception with EEG.
+    Includes practice trials, main experimental blocks, and rest periods.
+  
+  # Timing configuration
+  timing:
+    target_refresh_rate: 60  # Monitor refresh rate in Hz
+    timing_precision_ms: 2   # Acceptable timing deviation
+  
+  # Logging configuration  
+  logging:
+    log_level: "detailed"  # minimal, detailed, debug
+    save_responses: true
+    save_timing_data: true
+
+# ============================================================================
+# REUSABLE TEMPLATES (DRY Principle)
+# ============================================================================
+# Define common configurations once, reuse throughout
+
+templates:
+  # Standard fixation overlay
+  standard_fixation: &standard_fixation
+    fixation: true
+    fixation_type: "dot"
+    text: ""
+  
+  # Fixation with instruction
+  instruction_fixation: &instruction_fixation
+    fixation: true
+    fixation_type: "dot"
+    text: "Focus on the center"
+  
+  # No overlay
+  no_overlay: &no_overlay
+    fixation: false
+    text: ""
+  
+  # Standard keyboard response
+  binary_key_response: &binary_key_response
+    type: "key"
+    options: ["ArrowLeft", "ArrowRight"]
+    block_until_response: false
+    
+  # Confidence rating
+  confidence_response: &confidence_response
+    type: "key"
+    options: ["1", "2", "3", "4", "5"]
+    block_until_response: true
+
+# ============================================================================
+# EXPERIMENTAL BLOCKS
+# ============================================================================
+
+blocks:
+  # --------------------------------------------------------------------------
+  # BLOCK 1: Instructions & Consent
+  # --------------------------------------------------------------------------
+  - block_id: "instructions"
+    block_name: "Instructions"
+    description: "Experimental instructions and practice"
+    randomize: false
+    trials:
+      - trial_id: "welcome"
+        stimulus_type: "text"
+        stimulus: "Welcome to the Visual Perception Study!\n\nPress SPACE to continue"
+        duration_ms: 10000
+        overlay:
+          <<: *no_overlay
+        response:
+          type: "key"
+          options: [" "]
+          block_until_response: true
+        markers:
+          event_type: "instruction"
+          phase: "welcome"
+      
+      - trial_id: "instructions_1"
+        stimulus_type: "text"
+        stimulus: "You will see a series of images.\n\nPress the LEFT arrow if you see a FACE\nPress the RIGHT arrow if you see an OBJECT\n\nPress SPACE to continue"
+        duration_ms: 15000
+        overlay:
+          <<: *no_overlay
+        response:
+          type: "key"
+          options: [" "]
+          block_until_response: true
+        markers:
+          event_type: "instruction"
+          phase: "task_description"
+      
+      - trial_id: "instructions_2"
+        stimulus_type: "text"
+        stimulus: "Focus on the RED DOT in the center\nRespond as quickly and accurately as possible\n\nPress SPACE when ready to begin practice"
+        duration_ms: 15000
+        overlay:
+          <<: *no_overlay
+        response:
+          type: "key"
+          options: [" "]
+          block_until_response: true
+        markers:
+          event_type: "instruction"
+          phase: "ready"
+
+  # --------------------------------------------------------------------------
+  # BLOCK 2: Practice Trials
+  # --------------------------------------------------------------------------
+  - block_id: "practice"
+    block_name: "Practice"
+    description: "Practice trials with feedback"
+    randomize: false
+    trials:
+      # Practice trial 1: Face stimulus
+      - trial_id: "practice_face_01"
+        stimulus_type: "image"
+        stimulus: "https://picsum.photos/seed/face1/400/300"
+        duration_ms: 1000
+        overlay:
+          <<: *instruction_fixation
+        response:
+          <<: *binary_key_response
+          show_feedback: true
+          correct_answer: "ArrowLeft"
+        markers:
+          event_type: "practice_trial"
+          stimulus_category: "face"
+          trial_number: 1
+      
+      # Inter-trial interval
+      - trial_id: "practice_iti_01"
+        stimulus_type: "blank"
+        stimulus: ""
+        duration_ms: 500
+        overlay:
+          <<: *standard_fixation
+        response:
+          type: "none"
+        markers:
+          event_type: "iti"
+      
+      # Practice trial 2: Object stimulus
+      - trial_id: "practice_object_01"
+        stimulus_type: "image"
+        stimulus: "https://picsum.photos/seed/object1/400/300"
+        duration_ms: 1000
+        overlay:
+          <<: *instruction_fixation
+        response:
+          <<: *binary_key_response
+          show_feedback: true
+          correct_answer: "ArrowRight"
+        markers:
+          event_type: "practice_trial"
+          stimulus_category: "object"
+          trial_number: 2
+      
+      - trial_id: "practice_iti_02"
+        stimulus_type: "blank"
+        stimulus: ""
+        duration_ms: 500
+        overlay:
+          <<: *standard_fixation
+        response:
+          type: "none"
+        markers:
+          event_type: "iti"
+      
+      # More practice trials
+      - trial_id: "practice_face_02"
+        stimulus_type: "image"
+        stimulus: "https://picsum.photos/seed/face2/400/300"
+        duration_ms: 1000
+        overlay:
+          <<: *instruction_fixation
+        response:
+          <<: *binary_key_response
+          show_feedback: true
+          correct_answer: "ArrowLeft"
+        markers:
+          event_type: "practice_trial"
+          stimulus_category: "face"
+          trial_number: 3
+
+  # --------------------------------------------------------------------------
+  # BLOCK 3: Main Experiment - Fast Presentation
+  # --------------------------------------------------------------------------
+  - block_id: "main_block_1"
+    block_name: "Experiment Block 1"
+    description: "Main experimental trials - rapid serial visual presentation"
+    randomize: true
+    trials:
+      # Fixation baseline
+      - trial_id: "main_fixation_baseline"
+        stimulus_type: "blank"
+        stimulus: ""
+        duration_ms: 500
+        overlay:
+          <<: *standard_fixation
+        response:
+          type: "none"
+        markers:
+          event_type: "fixation_baseline"
+      
+      # Face trials
+      - trial_id: "main_face_01"
+        stimulus_type: "image"
+        stimulus: "https://picsum.photos/seed/exp_face1/400/300"
+        duration_ms: 800
+        overlay:
+          <<: *standard_fixation
+        response:
+          <<: *binary_key_response
+        markers:
+          event_type: "experimental_trial"
+          stimulus_category: "face"
+          block: 1
+          trial_number: 1
+      
+      - trial_id: "main_iti_01"
+        stimulus_type: "blank"
+        stimulus: ""
+        duration_ms: 400
+        overlay:
+          <<: *standard_fixation
+        response:
+          type: "none"
+        markers:
+          event_type: "iti"
+      
+      - trial_id: "main_object_01"
+        stimulus_type: "image"
+        stimulus: "https://picsum.photos/seed/exp_obj1/400/300"
+        duration_ms: 800
+        overlay:
+          <<: *standard_fixation
+        response:
+          <<: *binary_key_response
+        markers:
+          event_type: "experimental_trial"
+          stimulus_category: "object"
+          block: 1
+          trial_number: 2
+      
+      - trial_id: "main_iti_02"
+        stimulus_type: "blank"
+        stimulus: ""
+        duration_ms: 400
+        overlay:
+          <<: *standard_fixation
+        response:
+          type: "none"
+        markers:
+          event_type: "iti"
+      
+      - trial_id: "main_face_02"
+        stimulus_type: "image"
+        stimulus: "https://picsum.photos/seed/exp_face2/400/300"
+        duration_ms: 800
+        overlay:
+          <<: *standard_fixation
+        response:
+          <<: *binary_key_response
+        markers:
+          event_type: "experimental_trial"
+          stimulus_category: "face"
+          block: 1
+          trial_number: 3
+
+  # --------------------------------------------------------------------------
+  # BLOCK 4: Confidence Ratings
+  # --------------------------------------------------------------------------
+  - block_id: "confidence_block"
+    block_name: "Confidence Ratings"
+    description: "Trials with post-stimulus confidence ratings"
+    randomize: true
+    trials:
+      - trial_id: "conf_stimulus_01"
+        stimulus_type: "image"
+        stimulus: "https://picsum.photos/seed/conf1/400/300"
+        duration_ms: 1500
+        overlay:
+          <<: *standard_fixation
+        response:
+          type: "none"
+        markers:
+          event_type: "confidence_stimulus"
+          trial_number: 1
+
+  # --------------------------------------------------------------------------
+  # BLOCK 7: Rest Period
+  # --------------------------------------------------------------------------
+  - block_id: "rest"
+    block_name: "Rest"
+    description: "Rest period between blocks"
+    randomize: false
+    trials:
+      - trial_id: "rest_screen"
+        stimulus_type: "text"
+        stimulus: "BREAK TIME\n\nTake a rest\nPress SPACE when ready to continue"
+        duration_ms: 60000  # Max 1 minute
+        overlay:
+          <<: *no_overlay
+        response:
+          type: "key"
+          options: [" "]
+          block_until_response: true
+        markers:
+          event_type: "rest_period"
+
+      - trial_id: "conf_iti_01"
+        stimulus_type: "blank"
+        stimulus: ""
+        duration_ms: 800
+        overlay:
+          <<: *standard_fixation
+        response:
+          type: "none"
+        markers:
+          event_type: "iti"
+      
+      - trial_id: "conf_stimulus_02"
+        stimulus_type: "image"
+        stimulus: "https://picsum.photos/seed/conf2/400/300"
+        duration_ms: 1500
+        overlay:
+          <<: *standard_fixation
+        response:
+          type: "none"
+        markers:
+          event_type: "confidence_stimulus"
+          trial_number: 2
+      
+      - trial_id: "conf_rating_02"
+        stimulus_type: "text"
+        stimulus: "How confident are you?\n\n1 = Not at all    5 = Very confident"
+        duration_ms: 5000
+        overlay:
+          <<: *no_overlay
+        response:
+          <<: *confidence_response
+        markers:
+          event_type: "confidence_rating"
+          trial_number: 2
+
+  # --------------------------------------------------------------------------
+  # BLOCK 5: High-Frequency Flicker Paradigm (SSVEP)
+  # --------------------------------------------------------------------------
+  - block_id: "flicker_block"
+    block_name: "Flicker Stimulation"
+    description: "High-frequency visual stimulation for SSVEP"
+    randomize: false
+    trials:
+      - trial_id: "flicker_instruction"
+        stimulus_type: "text"
+        stimulus: "FLICKER BLOCK\n\nYou will see flickering images\nKeep your eyes on the center\n\nPress SPACE to start"
+        duration_ms: 10000
+        overlay:
+          <<: *no_overlay
+        response:
+          type: "key"
+          options: [" "]
+          block_until_response: true
+        markers:
+          event_type: "instruction"
+          phase: "flicker_start"
+      
+      # 10Hz flicker: 50ms on, 50ms off
+      - trial_id: "flicker_on_01"
+        stimulus_type: "image"
+        stimulus: "https://picsum.photos/seed/flicker_on/400/300"
+        duration_ms: 50
+        overlay:
+          <<: *standard_fixation
+        response:
+          type: "none"
+        markers:
+          event_type: "flicker_on"
+          frequency_hz: 10
+          cycle: 1
+      
+      - trial_id: "flicker_off_01"
+        stimulus_type: "blank"
+        stimulus: ""
+        duration_ms: 50
+        overlay:
+          <<: *standard_fixation
+        response:
+          type: "none"
+        markers:
+          event_type: "flicker_off"
+          frequency_hz: 10
+          cycle: 1
+      
+      - trial_id: "flicker_on_02"
+        stimulus_type: "image"
+        stimulus: "https://picsum.photos/seed/flicker_on/400/300"
+        duration_ms: 50
+        overlay:
+          <<: *standard_fixation
+        response:
+          type: "none"
+        markers:
+          event_type: "flicker_on"
+          frequency_hz: 10
+          cycle: 2
+      
+      - trial_id: "flicker_off_02"
+        stimulus_type: "blank"
+        stimulus: ""
+        duration_ms: 50
+        overlay:
+          <<: *standard_fixation
+        response:
+          type: "none"
+        markers:
+          event_type: "flicker_off"
+          frequency_hz: 10
+          cycle: 2
+      
+      # Repeat for 10 cycles = 1 second total
+      - trial_id: "flicker_on_03"
+        stimulus_type: "image"
+        stimulus: "https://picsum.photos/seed/flicker_on/400/300"
+        duration_ms: 50
+        overlay:
+          <<: *standard_fixation
+        response:
+          type: "none"
+        markers:
+          event_type: "flicker_on"
+          frequency_hz: 10
+          cycle: 3
+      
+  # --------------------------------------------------------------------------
+  # BLOCK 6: Button Response Paradigm
+  # --------------------------------------------------------------------------
+  - block_id: "button_block"
+    block_name: "Button Responses"
+    description: "Trials with button-based responses"
+    randomize: false
+    trials:
+      - trial_id: "button_instruction"
+        stimulus_type: "text"
+        stimulus: "Use the buttons below to respond\n\nPress Continue when ready"
+        duration_ms: 10000
+        overlay:
+          <<: *no_overlay
+        response:
+          type: "button"
+          options: ["Continue"]
+          block_until_response: true
+        markers:
+          event_type: "instruction"
+      
+      - trial_id: "button_trial_01"
+        stimulus_type: "image"
+        stimulus: "https://picsum.photos/seed/btn1/400/300"
+        duration_ms: 2000
+        overlay:
+          <<: *instruction_fixation
+          text: "Face or Object?"
+        response:
+          type: "button"
+          options: ["Face", "Object"]
+          block_until_response: false
+        markers:
+          event_type: "button_trial"
+          trial_number: 1
+
+  # --------------------------------------------------------------------------
+  # BLOCK 8: End of Experiment
+  # --------------------------------------------------------------------------
+  - block_id: "end"
+    block_name: "End"
+    description: "Experiment completion"
+    randomize: false
+    trials:
+      - trial_id: "thank_you"
+        stimulus_type: "text"
+        stimulus: "EXPERIMENT COMPLETE\n\nThank you for participating!\n\nPress SPACE to finish"
+        duration_ms: 20000
+        overlay:
+          <<: *no_overlay
+        response:
+          type: "key"
+          options: [" "]
+          block_until_response: true
+        markers:
+          event_type: "experiment_end"
+
+# ============================================================================
+# ADVANCED CONFIGURATION
+# ============================================================================
+
+advanced:
+  # Image preloading strategy
+  preload:
+    enabled: true
+    preload_next_n: 5
+    preload_all_in_block: false
+  
+  # Quality control
+  quality_control:
+    monitor_timing: true
+    log_dropped_frames: true
+    warn_on_drift_ms: 5
+  
+  # Response validation
+  response_validation:
+    min_rt_ms: 100  # Minimum valid response time
+    max_rt_ms: 3000  # Maximum valid response time
+  
+  # Data export
+  export:
+    format: "jsonl"  # JSON Lines format for safety
+    include_metadata: true
+    compress: false
